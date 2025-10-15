@@ -4,16 +4,39 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.views.decorators.csrf import csrf_exempt
+import json
+from django.http import JsonResponse
 
-class AddNumberAPIView(APIView):
-    def post(self, request):
-        number = request.data.get('number')
-        if number is None:
-            return Response({'error': 'No number provided'}, status=status.HTTP_400_BAD_REQUEST)
+@csrf_exempt  # Csrf_exempt allows POST requests without CSRF token
+def double(request):
+    if request.method == "POST":
         try:
-            number = int(number)
-        except ValueError:
-            return Response({'error': 'Invalid number'}, status=status.HTTP_400_BAD_REQUEST)
+            data = json.loads(request.body)
+            number = data.get('number', None)
+            if number is None:
+                return JsonResponse({'error': 'number is required'}, status=400)
+            result = number * 2
+            return JsonResponse({'result': result})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    else:
+        return JsonResponse({'error': 'POST method required'}, status=405)
 
-        result = number + 10
-        return Response({'result': result})
+def predict(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST method required"}, status=405)
+
+    # check if file is in request
+    uploaded_file = request.FILES.get("file")
+    if not uploaded_file:
+        return JsonResponse({"error": "file is required"}, status=400)
+
+    # save the uploaded file to a temporary location
+    # path = default_storage.save(uploaded_file.name, ContentFile(uploaded_file.read()))
+
+    # img = Image.open(path)
+    # result = model.predict(img)
+    
+    result = "cat" # Dummy result
+    return JsonResponse({"result": result})

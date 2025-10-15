@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import AddNumberAPIView
+from .views import double, predict
 
 urlpatterns = [
-    path('add-number/', AddNumberAPIView.as_view(), name='add-number'),
+    path('double/', double, name='double'), # Only for test: Delete later
+    path('predict/', predict, name='predict'),
 ]
