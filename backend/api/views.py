@@ -1,12 +1,14 @@
 from django.shortcuts import render
 
-# Create your views here.
+import os
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 import json
 from django.http import JsonResponse
+
+from ml_model.train_model import predict_image
 
 @csrf_exempt  # Csrf_exempt allows POST requests without CSRF token
 def double(request):
@@ -23,20 +25,20 @@ def double(request):
     else:
         return JsonResponse({'error': 'POST method required'}, status=405)
 
+
+@csrf_exempt
 def predict(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST method required"}, status=405)
 
-    # check if file is in request
-    uploaded_file = request.FILES.get("file")
-    if not uploaded_file:
-        return JsonResponse({"error": "file is required"}, status=400)
+    if 'file' not in request.FILES:
+        return JsonResponse({"error": "No file uploaded"}, status=400)
 
-    # save the uploaded file to a temporary location
-    # path = default_storage.save(uploaded_file.name, ContentFile(uploaded_file.read()))
-
-    # img = Image.open(path)
-    # result = model.predict(img)
-    
-    result = "cat" # Dummy result
-    return JsonResponse({"result": result})
+    try:
+        img_file = request.FILES['file']
+        prediction = predict_image(img_file) # Use the predict_image function from train_model.py
+        if prediction is None:
+            return JsonResponse({"error": "Prediction failed"}, status=500)
+        return JsonResponse({"prediction": prediction})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

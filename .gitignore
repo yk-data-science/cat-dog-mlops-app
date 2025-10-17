@@ -25,6 +25,8 @@ Thumbs.db
 .env
 .env.*
 *.env
+backend/data/
+backend/tests
 
 # SSH keys / GPG keys
 *.pem
