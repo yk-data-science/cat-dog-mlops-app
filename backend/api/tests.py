@@ -28,15 +28,42 @@ class DoubleApiTests(TestCase):
 #         self.assertIn("result", data)
 
 class PredictApiTests(TestCase):
-    def test_predict_api(self):
+    # def test_predict_api(self):
+    #     img_path = os.path.join(os.path.dirname(__file__), "../tests/free_cat2.jpg")
+    #     with open(img_path, "rb") as f:
+    #         img = SimpleUploadedFile("free_cat2.jpg", f.read(), content_type="image/jpeg")
+
+    #     response = self.client.post("/api/predict/", {"file": img})
+    #     self.assertEqual(response.status_code, 200)
+
+    #     # Optional: check if prediction key exists
+    #     self.assertIn("prediction", response.json())
+    #     print("Predicted:", response.json()["prediction"])
+    
+    def test_predict_api_returns_percentages(self):
+        """Test prediction API returns probability percentages for cat, dog, and other."""
+        # Load a test image (adjust path as needed)
         img_path = os.path.join(os.path.dirname(__file__), "../tests/free_cat2.jpg")
         with open(img_path, "rb") as f:
             img = SimpleUploadedFile("free_cat2.jpg", f.read(), content_type="image/jpeg")
 
+        # Send POST request to prediction endpoint
         response = self.client.post("/api/predict/", {"file": img})
         self.assertEqual(response.status_code, 200)
 
-        # Optional: check if prediction key exists
-        self.assertIn("prediction", response.json())
-        print("Predicted:", response.json()["prediction"])
-    
+        data = response.json()
+
+        # Ensure response includes probability keys
+        for key in ["cat", "dog", "other"]:
+            self.assertIn(key, data, f"Missing key '{key}' in API response")
+
+            # Check that values are within valid range 0.0–1.0
+            self.assertIsInstance(data[key], float, f"'{key}' is not a float")
+            self.assertGreaterEqual(data[key], 0.0, f"'{key}' is less than 0.0")
+            self.assertLessEqual(data[key], 1.0, f"'{key}' is greater than 1.0")
+
+        # Optional: sum of probabilities ≈ 1.0
+        total = data["cat"] + data["dog"] + data["other"]
+        self.assertAlmostEqual(total, 1.0, delta=0.05, msg="Probabilities do not sum to 1")
+
+        print(f"Prediction API result: {data}")

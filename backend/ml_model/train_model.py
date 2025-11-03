@@ -1,11 +1,11 @@
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 from torch.optim import Adam
 from PIL import Image
-
 
 # Device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -99,29 +99,29 @@ model = load_model()
 # print(f"Model saved at {MODEL_PATH}")
 
 
-def predict_image(image_path_or_file):
-    """
-    Predict whether an image is a cat or dog.
-    """
-    model.eval()
-    try:
-        from PIL import Image
-        if isinstance(image_path_or_file, str):
-            img = Image.open(image_path_or_file).convert("RGB")
-        else:
-            img = Image.open(image_path_or_file.file).convert("RGB")
+# def predict_image(image_path_or_file):
+#     """
+#     Predict whether an image is a cat or dog.
+#     """
+#     model.eval()
+#     try:
+#         from PIL import Image
+#         if isinstance(image_path_or_file, str):
+#             img = Image.open(image_path_or_file).convert("RGB")
+#         else:
+#             img = Image.open(image_path_or_file.file).convert("RGB")
 
-        img = transform(img).unsqueeze(0).to(device)
+#         img = transform(img).unsqueeze(0).to(device)
 
-        with torch.no_grad():
-            outputs = model(img)
-            _, pred = outputs.max(1) # Get the index of the max log-probability
+#         with torch.no_grad():
+#             outputs = model(img)
+#             _, pred = outputs.max(1) # Get the index of the max log-probability
 
-        labels = ["cat", "dog"]
-        return labels[pred.item()]
-    except Exception as e:
-        print(f"Error predicting image: {e}")
-        return None
+#         labels = ["cat", "dog"]
+#         return labels[pred.item()]
+#     except Exception as e:
+#         print(f"Error predicting image: {e}")
+#         return None
 
 
 # For training purposes only
@@ -129,3 +129,46 @@ def predict_image(image_path_or_file):
 #     sample_image = os.path.join(TEST_DIR, "cats/cat.4001.jpg")
 #     prediction = predict_image(sample_image)
 #     print(f"Predicted class for {sample_image}: {prediction}")
+
+
+
+def predict_image(image_path_or_file):
+    """
+    Predict probabilities for cat, dog, and other.
+    Returns: dict like {"cat": 0.9, "dog": 0.05, "other": 0.05}
+    """
+    model.eval()
+    try:
+        from PIL import Image
+
+        # Load image (works for Django InMemoryUploadedFile or file path)
+        if isinstance(image_path_or_file, str):
+            img = Image.open(image_path_or_file).convert("RGB")
+        else:
+            img = Image.open(image_path_or_file.file).convert("RGB")
+
+        # Preprocess
+        img = transform(img).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            outputs = model(img)                  # raw logits
+            probs = F.softmax(outputs, dim=1)[0]  # convert to probabilities
+
+        # Get class probabilities
+        cat_prob = probs[0].item()
+        dog_prob = probs[1].item()
+
+        # Estimate "other" as residual (useful when neither cat nor dog is confident)
+        other_prob = max(0.0, 1.0 - (cat_prob + dog_prob))
+
+        result = {
+            "cat": round(cat_prob, 4),
+            "dog": round(dog_prob, 4),
+            "other": round(other_prob, 4)
+        }
+
+        return result
+
+    except Exception as e:
+        print(f"Error predicting image: {e}")
+        return {"cat": 0, "dog": 0, "other": 1}
